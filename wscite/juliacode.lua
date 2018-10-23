@@ -1,46 +1,17 @@
---invert table for quick lookup
-function table_invert(t)
+--Functions
+function table:invert()
+--invert table for quick reverse lookup
    local s={}
-   for k,v in pairs(t) do
+   for k,v in pairs(self) do
      s[v]=k
    end
    return s
 end
 
-selstartpos = scite.SendEditor(SCI_GETSELECTIONSTART)
-selendpos = scite.SendEditor(SCI_GETSELECTIONEND)
-selstartline = scite.SendEditor(SCI_LINEFROMPOSITION, selstartpos)
-selendline = scite.SendEditor(SCI_LINEFROMPOSITION, scite.SendEditor(SCI_GETSELECTIONEND))
-
-
-
-if selstartpos == selendpos then
-	print(selstartpos)
-	print(scite.SendEditor(SCI_GETSELECTIONEND))
-	text = editor:GetCurLine()
-	text = string.gsub(text, "^%s+", "")	--removes leading blank
-	headertext = "# Running Line: " .. selstartline +1 ..  "\n"
-elseif selstartline == selendline then
-	text = editor:GetSelText()
-	text = string.gsub(text, "^%s+", "")
-	headertext = "# Running Selection On Line: " .. selstartline +1 ..  ";\n"
-else
-	text = editor:GetSelText()
-	
-	lines = {}
-	i = 1
-	for line = selstartline, selendline do
-		linestart = scite.SendEditor(SCI_GETLINESELSTARTPOSITION, line) 
-		lineend = scite.SendEditor(SCI_GETLINESELENDPOSITION, line)
-		strtext = string.sub(text, linestart-selstartpos + 1, lineend - selstartpos)
-		if string.match(strtext, "[^%s]")~=nil then
-			lines[i] = strtext
-			i = i + 1
-		end
-	end
-	
-	
-	
+function cancelTabs(lines)
+--Cancels out tabs with backspaces so multi-line code display properly in Julia
+--The remaining tabs are then converted to spaces
+--this is needed because tabs are "cumulative" in Julia during multi-line input 
 	--remove extra leading tabs
 	spacecount = {}
 	spaces = {}
@@ -67,7 +38,7 @@ else
 		j = j - 1
 	end
 	
-	inv_tablevels = table_invert(tablevels)
+	inv_tablevels = table.invert(tablevels)
 	
 	for i = 1, #lines do
 		if spacecount[i]>0 then
@@ -77,21 +48,84 @@ else
 	end
 	
 	--cancel out tabs with backspaces
-	for i=1, #lines -1 do
+	for i=1, #lines do
 		tabstr = string.match(lines[i], "^\t+")
 		lines[i] = lines[i] .. "\n"
 		if tabstr ~= nil then
 			tabcount = string.len(tabstr)
 			lines[i] = lines[i] .. string.rep("\b", tabcount)
 			--replace leading each tab with 4 spaces since accidently hitting tab gives you wall of text
-			lines[i] = string.gsub(lines[i], "^\t*", string.rep(" ", tabcount*4)) 
+			lines[i] = string.gsub(lines[i], "^\t*", string.rep(" ", tabcount*editor.TabWidth)) 
 		end
 	end
-	
-	text=table.concat(lines)
-	headertext = "# Running Selection On Lines: " .. selstartline +1 .. " to " .. selendline +1 .. "\n"
+
+	return lines
 end
 
-text = headertext .. text
-editor:CopyText(text) 
---print(selendline-selstartline+1 .. " line(s) of Julia code sent to AutoHotkey.")
+function string:split(inSplitPattern, outResults)
+--http://lua-users.org/wiki/SplitJoin
+   if not outResults then
+      outResults = { }
+   end
+   local theStart = 1
+   local theSplitStart, theSplitEnd = string.find( self, inSplitPattern, 
+theStart )
+   while theSplitStart do
+      table.insert( outResults, string.sub( self, theStart, theSplitStart-1 ) )
+      theStart = theSplitEnd + 1
+      theSplitStart, theSplitEnd = string.find( self, inSplitPattern, theStart )
+   end
+   table.insert( outResults, string.sub( self, theStart ) )
+   return outResults
+end
+
+------------------------------------------------------------------------
+--Auto Execute
+
+selstartpos = scite.SendEditor(SCI_GETSELECTIONSTART)
+selendpos = scite.SendEditor(SCI_GETSELECTIONEND)
+selstartline = scite.SendEditor(SCI_LINEFROMPOSITION, selstartpos)
+selendline = scite.SendEditor(SCI_LINEFROMPOSITION, scite.SendEditor(SCI_GETSELECTIONEND))
+lines = {}
+--Case: Multi-select
+if editor.Selections > 1 then
+	text = editor:GetText()
+	k = 1
+	--look at each selection
+	for i = 1, editor.Selections do
+		selection = string.sub(text, editor.SelectionNStart[i-1] + 1, editor.SelectionNEnd[i-1])
+		--break each selection down into lines
+		string.split(selection, "\n", lines)
+	end	
+--Case: No selection
+elseif selstartpos == selendpos then
+	lines[1] = editor:GetCurLine()
+	lines[1] = string.gsub(lines[1], "^%s+", "")	--removes leading blank
+	lines[1] = string.gsub(lines[1], "\n", "")
+--Case: Selection on same line
+elseif selstartline == selendline then
+	lines[1] = editor:GetSelText()
+	lines[1] = string.gsub(lines[1], "^%s+", "")
+	lines[1] = string.gsub(lines[1], "\n", "")
+--Other (multi line select)
+else
+	text = editor:GetText()
+	i = 1
+	for line = selstartline, selendline do
+		linestart = scite.SendEditor(SCI_GETLINESELSTARTPOSITION, line)
+		if linestart > 0 then	--linestart will be -1 if no selection is on this line
+			lineend = scite.SendEditor(SCI_GETLINESELENDPOSITION, line)
+			strtext = string.sub(text, linestart+1, lineend)
+			if string.match(strtext, "[^%s]")~=nil then
+				lines[i] = strtext
+				i = i + 1
+			end
+		end
+	end	
+end
+
+
+lines = cancelTabs(lines)  --Compensate for tabs with backspaces
+text = table.concat(lines)
+editor:CopyText(text)  --Send results to Clipboard
+

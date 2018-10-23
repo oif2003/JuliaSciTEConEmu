@@ -99,14 +99,13 @@ executeSection() {
 	clipsaved := ClipboardAll()
 	clipboard := ""
 	scite.sendMsg("menucommand", "1109")
-	while !Clipboard
-		sleep 100
+	timeStart := A_TickCount
+	while (A_TickCount - timeStart) < 5000 && !Clipboard
+		sleep 50
 	
-	if SubStr(ClipBoard, -1) != "`n"
-	ClipBoard := ClipBoard "`n"
 	MenuSelect("ahk_pid " julia.parentPID,, "0&", "Edit", "Paste")
-	
 	WinActivate("ahk_pid " scite.pid)
+
 	Clipboard := clipsaved
 	clipsaved := ""
 }
@@ -116,8 +115,9 @@ runScript() {
 	clipsaved := ClipboardAll()
 	clipboard := ""
 	scite.sendMsg("menucommand", "1106")
-	while !Clipboard
-		sleep 100
+	timeStart := A_TickCount
+	while (A_TickCount - timeStart) < 5000 && !Clipboard
+		sleep 50
 	
 	title := "# Running file: " Clipboard "`n"
 	Clipboard := title 'include("' StrReplace(Clipboard, "\", "\\") '")`n'
