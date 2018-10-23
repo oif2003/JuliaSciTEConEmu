@@ -8,13 +8,22 @@ function table_invert(t)
 end
 
 selstartpos = scite.SendEditor(SCI_GETSELECTIONSTART)
+selendpos = scite.SendEditor(SCI_GETSELECTIONEND)
 selstartline = scite.SendEditor(SCI_LINEFROMPOSITION, selstartpos)
 selendline = scite.SendEditor(SCI_LINEFROMPOSITION, scite.SendEditor(SCI_GETSELECTIONEND))
 
-if selstartline  == selendline then
+
+
+if selstartpos == selendpos then
+	print(selstartpos)
+	print(scite.SendEditor(SCI_GETSELECTIONEND))
 	text = editor:GetCurLine()
 	text = string.gsub(text, "^%s+", "")	--removes leading blank
 	headertext = "# Running Line: " .. selstartline +1 ..  "\n"
+elseif selstartline == selendline then
+	text = editor:GetSelText()
+	text = string.gsub(text, "^%s+", "")
+	headertext = "# Running Selection On Line: " .. selstartline +1 ..  ";\n"
 else
 	text = editor:GetSelText()
 	
@@ -80,7 +89,7 @@ else
 	end
 	
 	text=table.concat(lines)
-	headertext = "# Running Lines: " .. selstartline +1 .. " to " .. selendline +1 .. "\n"
+	headertext = "# Running Selection On Lines: " .. selstartline +1 .. " to " .. selendline +1 .. "\n"
 end
 
 text = headertext .. text
