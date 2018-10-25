@@ -81,7 +81,7 @@ end
 
 ------------------------------------------------------------------------
 --Auto Execute
-
+--output.ReadOnly = false	--for debugging
 selstartpos = scite.SendEditor(SCI_GETSELECTIONSTART)
 selendpos = scite.SendEditor(SCI_GETSELECTIONEND)
 selstartline = scite.SendEditor(SCI_LINEFROMPOSITION, selstartpos)
@@ -113,7 +113,7 @@ else
 	i = 1
 	for line = selstartline, selendline do
 		linestart = scite.SendEditor(SCI_GETLINESELSTARTPOSITION, line)
-		if linestart > 0 then	--linestart will be -1 if no selection is on this line
+		if linestart >= 0 then	--linestart will be -1 if no selection is on this line
 			lineend = scite.SendEditor(SCI_GETLINESELENDPOSITION, line)
 			strtext = string.sub(text, linestart+1, lineend)
 			if string.match(strtext, "[^%s]")~=nil then
